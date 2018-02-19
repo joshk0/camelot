@@ -1,0 +1,190 @@
+<html>
+<head>
+<title>Camelot</title>
+<script type="text/javascript" src="js/jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="js/jquery.mobile.custom.js"></script>
+<script type="text/javascript" src="js/parseuri.js"></script>
+<link rel="stylesheet" href="css/jquery.mobile.custom.structure.css" />
+<link rel="stylesheet" href="css/jquery.mobile.custom.theme.css" />
+<style>
+body, html {
+   height: 100%;
+}
+
+.ui-mobile {
+   background-color: #000066;
+}
+
+#login-container {
+   margin-left: auto;
+   margin-right: auto;
+   vertical-align: middle;
+}
+
+.ui-field-contain {
+   width: 100%;
+}
+
+#error-container {
+   display: none;
+   text-align: center;
+}
+
+#status-container {
+   display: none;
+   text-align: center;
+}
+
+#title {
+   text-align: center;
+}
+</style>
+<script type="text/javascript">
+<!--
+var gRegion = null;
+
+$(document).ready(function() {
+   $('#login-form').submit(onSubmit);
+});
+
+function onSubmit()
+{
+   var data;
+
+   if ($('#username').val().length === 0 ||
+       $('#password').val().length === 0) {
+      $('#error-container').html('Please fill in both username and password.')
+                           .show();
+      return false;
+   }
+
+   // Get closest region
+   $('#error-container').hide();
+   $('#status').html('Locating nearest desktop...');
+   $('#status-container').slideDown();
+
+   $.ajax({
+      url: 'desktop/closest',
+      dataType: 'text',
+      success: onClosestSuccess,
+      error: onError
+   });
+};
+
+function onClosestSuccess(region, st, jqXHR)
+{
+   data = {
+      'username': $('#username').val(),
+      'password': $('#password').val(),
+      'region': region
+   }
+
+   $('#status').html('Enabling desktop on ' + region + '...');
+
+   gRegion = region;
+
+   $.ajax({
+      url: 'desktop/enable',
+      data: JSON.stringify(data),
+      contentType: 'application/json',
+      type: 'POST',
+      dataType: 'text',
+      success: onEnableSuccess,
+      error: onError
+   });
+
+   return false;
+};
+
+function onEnableSuccess()
+{
+   data = {
+      'username': $('#username').val(),
+      'password': $('#password').val(),
+      'region': gRegion,
+   }
+
+   $('#status').html('Waiting for desktop (may be a while) ...');
+
+   $.ajax({
+      url: 'desktop/ip',
+      data: JSON.stringify(data),
+      contentType: 'application/json',
+      type: 'POST',
+      dataType: 'text',
+      success: onIpSuccess,
+      error: onError
+   });
+};
+
+function onIpSuccess(ipAddr, st, jqXHR)
+{
+   var href = parseUri(window.location.href);
+   var desktopUser = 'Administrator'; //XXX
+   var isiPad = navigator.userAgent.match(/iPad/i) != null;
+   var newHref;
+   var protocol;
+
+   if (isiPad) {
+      protocol = 'pocketcloud://';
+   } else {
+      protocol = 'http://';
+   }
+
+   newHref = protocol +
+             href.host + ':' + href.port +
+             href.directory +
+             'desktop/rdp/' + desktopUser + '/' + ipAddr + '.rdp';
+   console.log(newHref);
+
+   resetPage();
+   window.location = newHref;
+};
+
+function resetPage()
+{
+   $('#error-container').hide();
+   $('#status-container').hide();
+   $('#username').val('');
+   $('#password').val('');
+};
+
+function onError()
+{
+   $('#status-container').slideUp();
+   $('#error-container').html('An error has occurred. Check your credentials and try again.')
+                        .show();
+};
+//-->
+</script>
+</head>
+<body>
+<form id="login-form">
+<div id="login-container">
+   <div id="title">
+      <h3>Welcome to Camelot</h3>
+   </div>
+   <div id="error-container" data-theme="e"></div>
+   <div data-role="fieldcontain">
+      <label for="username">Username</label>
+      <input id="username" type="text" autocapitalize="off" />
+   </div>
+   <div data-role="fieldcontain">
+      <label for="password">Password</label>
+      <input id="password" type="password" />
+   </div>
+   <div id="login-submit">
+      <input type="submit" value="Connect" />
+   </div>
+   <div id="status-container">
+      <div id="spinner">
+         <img src="img/spin.gif" />
+      </div>
+      <div id="status">
+         Loading...
+      </div>
+   </div>
+</div>
+</form>
+</body>
+</html>
